@@ -1,14 +1,16 @@
+# Download the dataset
 wget https://www.dropbox.com/s/nmz1zd2bw2n5ora/nyc_311_sample.csv
 
-columns:
+# Run the Python data cleaning script
+python3 /home/cloudera/scripts/data_cleaning.py
 
-Unique Key,Created Date,Closed Date,Agency,Agency Name,Complaint Type,Descriptor,Location Type,Incident Zip,Incident Address,Street Name,Cross Street 1,Cross Street 2,Intersection Street 1,Intersection Street 2,Address Type,City,Landmark,Facility Type,Status,Due Date,Resolution Description,Resolution Action Updated Date,Community Board,BBL,Borough,X Coordinate (State Plane),Y Coordinate (State Plane),Open Data Channel Type,Park Facility Name,Park Borough,Vehicle Type,Taxi Company Borough,Taxi Pick Up Location,Bridge Highway Name,Bridge Highway Direction,Road Ramp,Bridge Highway Segment,Latitude,Longitude,Location
+# Create a directory in Hadoop for storing the data
+hadoop fs -mkdir /BigData/hive/nyc_311_data;
 
-hadoop fs -ls mkdir /BigData/hive/assignment1_files;
-hadoop fs -ls copyFromLocal /home/cloudera/assignment1/modified_nyc_311_sample.csv /BigData/hive/assignment1_files/.;
+# Upload the cleaned dataset to Hadoop
+hadoop fs -copyFromLocal /home/cloudera/nyc_311/modified_nyc_311_sample.csv /BigData/hive/nyc_311_data/.;
 
-Hive table creation code:
-
+# Hive table creation
 CREATE EXTERNAL TABLE IF NOT EXISTS nycData_abdulhaseeb (
   `Unique Key` INT,
   `Created Date` TIMESTAMP,
@@ -55,37 +57,26 @@ CREATE EXTERNAL TABLE IF NOT EXISTS nycData_abdulhaseeb (
 ROW FORMAT DELIMITED
 FIELDS TERMINATED BY ','
 STORED AS TEXTFILE
-LOCATION '/BigData/hive/assignment1/'
+LOCATION '/BigData/hive/nyc_311_data/'
 TBLPROPERTIES('skip.header.line.count'='1');
 
-
-
-Top complaints: The dataset can provide information on the most common complaints and service
-requests made to the 311 call center. This information can be used to prioritize resources and improve
-city services.
-
-Query1:
-Top 10 complaint types
-SELECT UPPER(`Complaint Type`),COUNT(*) AS ComplaintCount
+# Sample Queries
+# Query 1: Top 10 complaint types
+SELECT UPPER(`Complaint Type`), COUNT(*) AS ComplaintCount
 FROM nycData_abdulhaseeb
 GROUP BY UPPER(`Complaint Type`)
 ORDER BY ComplaintCount DESC
 LIMIT 10;
 
-Query2:
-Top 10 complaint types for the year 2022
-SELECT UPPER(`Complaint Type`),COUNT(*) AS ComplaintCount
+# Query 2: Top 10 complaint types for the year 2022
+SELECT UPPER(`Complaint Type`), COUNT(*) AS ComplaintCount
 FROM nycData_abdulhaseeb
 WHERE substr(`Created Date`, 1, 4) = '2022'
 GROUP BY UPPER(`Complaint Type`)
 ORDER BY ComplaintCount DESC
 LIMIT 10;
 
-
-Geographic distribution: The dataset can be used to analyze the geographic distribution of complaints and requests, allowing the city to identify areas with higher levels of need.
-
-Query3:
-Top 10 cities with most complaints
+# Query 3: Top 10 cities with most complaints
 SELECT UPPER(`City`) AS UnifiedCity, COUNT(*) AS ComplaintCount
 FROM nycData_abdulhaseeb
 WHERE `City` != ' ' AND `City` != ''
@@ -93,63 +84,56 @@ GROUP BY UPPER(`City`)
 ORDER BY ComplaintCount DESC
 LIMIT 10;
 
-Query4:
-Top 10 streets with the most incidents in Brooklyn
-SELECT `Incident Address`,COUNT(*) AS ComplaintCount
+# Query 4: Top 10 streets with the most incidents in Brooklyn
+SELECT `Incident Address`, COUNT(*) AS ComplaintCount
 FROM nycData_abdulhaseeb
 WHERE `City` = 'BROOKLYN' AND `Incident Address` IS NOT NULL AND trim(`Incident Address`) != ''
 GROUP BY `Incident Address`
 ORDER BY ComplaintCount DESC
 LIMIT 10;
 
-Query5:
-Top 10 streets with the most incidents in Bronx
-SELECT `Incident Address`,COUNT(*) AS ComplaintCount
+# Query 5: Top 10 streets with the most incidents in Bronx
+SELECT `Incident Address`, COUNT(*) AS ComplaintCount
 FROM nycData_abdulhaseeb
 WHERE `City` = 'BRONX' AND `Incident Address` IS NOT NULL AND trim(`Incident Address`) != ''
 GROUP BY `Incident Address`
 ORDER BY ComplaintCount DESC
 LIMIT 10;
 
-Query6:
-Facility types with most complaints (Top 4 have significant percentage)
-SELECT `Facility Type`,COUNT(*) as TotalComplaints,ROUND(COUNT(*) * 100.0 / SUM(COUNT(*)) OVER (), 2) as PercentOfTotal
+# Query 6: Facility types with most complaints
+SELECT `Facility Type`, COUNT(*) AS TotalComplaints,
+       ROUND(COUNT(*) * 100.0 / SUM(COUNT(*)) OVER (), 2) AS PercentOfTotal
 FROM nycData_abdulhaseeb
 WHERE `Facility Type` != 'N/A' AND `Facility Type` != '' AND `Facility Type` != ' '
 GROUP BY `Facility Type`
 ORDER BY PercentOfTotal DESC
 LIMIT 4;
 
-Query7:
-Top 10 Agencies which recieved most complaints in 2022
+# Query 7: Top 10 Agencies which received most complaints in 2022
 SELECT `Agency Name`, COUNT(*) AS ComplaintCount
 FROM nycData_abdulhaseeb
 WHERE substr(`Created Date`, 1, 4) = '2022'
-GROUP BY `Agency Name` 
+GROUP BY `Agency Name`
 ORDER BY ComplaintCount DESC
 LIMIT 10;
 
-
-Query8:
-Top 10 Agencies which recieved most complaints(over all the years)
+# Query 8: Top 10 Agencies which received most complaints (overall)
 SELECT `Agency Name`, COUNT(*) AS ComplaintCount
 FROM nycData_abdulhaseeb
-GROUP BY `Agency Name` 
+GROUP BY `Agency Name`
 ORDER BY ComplaintCount DESC
 LIMIT 10;
 
-Query9:
+# Query 9: Agencies with the most open complaints up to 2018
 SELECT UPPER(`Agency Name`) AS AgencyName, COUNT(*) AS ComplaintCount
 FROM nycData_abdulhaseeb
 WHERE CAST(substr(`Created Date`, 1, 4) AS INT) <= 2018
-AND UPPER(`Status`) NOT IN ('CLOSED', 'CLOSED - TESTING', 'STARTED', 'UNSPECIFIED')
+  AND UPPER(`Status`) NOT IN ('CLOSED', 'CLOSED - TESTING', 'STARTED', 'UNSPECIFIED')
 GROUP BY UPPER(`Agency Name`)
 ORDER BY ComplaintCount DESC
 LIMIT 5;
 
-
-Query10:
-Top 5 Location type with most complaints
+# Query 10: Top 5 Location types with most complaints
 SELECT `Location type`, COUNT(*) AS ComplaintCount
 FROM nycData_abdulhaseeb
 WHERE TRIM(`Location type`) != ''
